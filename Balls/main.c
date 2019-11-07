@@ -55,24 +55,6 @@ int main(int argc, char *argv[])
             pthread_mutex_destroy(&boardMutexes[i][j]);
         }
     }
-
-
-    pthread_t thread1;
-    const char *message1 = "Thread 1";
-    int  iret1;
-
-    iret1 = pthread_create( &thread1, NULL, do_stuff, (void*) message1);
-    if(iret1)
-    {
-        fprintf(stderr,"Error - pthread_create() return code: %d\n",iret1);
-        exit(EXIT_FAILURE);
-    }
-
-    printf("pthread_create() for thread 1 returns: %d\n",iret1);
-
-    pthread_join( thread1, NULL);
-    
-    exit(EXIT_SUCCESS);
 }
 
 
@@ -83,26 +65,59 @@ void *move_ball(void* ptr)
 
     while(!ifEnd())
     {
+        
 
     }
 }
 
 void *print_state(void* ptr)
 {
-    //start ncurses
+    //init ncurses
+    initscr();
+    noecho();
+    curs_set(FALSE);
+
+    //print frame
+    for(int i=0; i<SIZE_X+2; i++)
+    {
+        mvaddch(0, i, '#');
+        mvaddch(SIZE_Y+1, i, '#');
+    }
+    for(int i=0; i<SIZE_Y+2; i++)
+    {
+        mvaddch(i, 0, '#');
+        mvaddch(i, SIZE_X+1, '#');
+    }
+    refresh();
 
     while(!ifEnd())
     {
+        //clear board
+        for(int i=0; i<SIZE_Y; i++)
+            for(int j=0; j<SIZE_X; j++)
+                mvaddch(i+1, j+1, ' ');
 
+        //place balls on new positions
+        for(int i=0; i<MAX_BALLS; i++)
+        {
+            pthread_mutex_lock(&ballMutexes[i]);
+            if(balls[i].position_X >= 0 && balls[i].position_Y >= 0)
+                mvaddch(balls[i].position_Y+1, balls[i].position_X+1, 'o');
+            pthread_mutex_unlock(&ballMutexes[i]);
+        }
+
+        refresh();
+        usleep(1000*100);
     }
 
     //end ncurses
+    endwin();
 }
 
 void *watch_for_end(void* ptr)
 {
     //reason to stop
-    usleep(1000*1000);
+    usleep(1000*1000*5);
     pthread_mutex_lock( &isEndMutex);
     isEnd = true;
     pthread_mutex_unlock( &isEndMutex);
@@ -115,12 +130,4 @@ bool ifEnd()
     result = isEnd;
     pthread_mutex_unlock( &isEndMutex);
     return result;
-}
-
-void *do_stuff (void *ptr)
-{
-    char *message;
-    message = (char *) ptr;
-    printf("%s \n", message);
-    
 }

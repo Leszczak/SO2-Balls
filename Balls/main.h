@@ -6,8 +6,8 @@
 
 #define MAX_BALLS       1
 #define ADD_INTERVAL    3
-#define SIZE_X          20
-#define SIZE_Y          20
+#define SIZE_X          99
+#define SIZE_Y          30
 #define GRAVITY         1
 #define SUM_TO_MOVE     100
 
@@ -35,9 +35,7 @@ pthread_t isEndThread;
 pthread_t printThread;
 pthread_t ballThreads[MAX_BALLS];
 
-
 int main(int argc, char *argv[]);
-void *do_stuff(void*);
 void *move_ball(void*);
 void *print_state(void*);
 void *watch_for_end(void*);
