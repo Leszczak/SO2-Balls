@@ -2,6 +2,9 @@
 
 int main(int argc, char *argv[])
 {
+    //for randomness
+    srand(time(NULL));
+
     //isEnd
     pthread_mutex_init( &isEndMutex, NULL);
     isEnd = false;
@@ -18,8 +21,8 @@ int main(int argc, char *argv[])
     for(int i=0; i<MAX_BALLS; i++)
     {
         pthread_mutex_init(&ballMutexes[i], NULL);
-        balls[i].position_X = 0;
-        balls[i].position_Y = 0;
+        balls[i].position_X = -1;
+        balls[i].position_Y = -1;
         balls[i].direction_X = 0;
         balls[i].direction_Y = 0;
         balls[i].velocity_X = 0;
@@ -60,13 +63,42 @@ int main(int argc, char *argv[])
 
 void *move_ball(void* ptr)
 {
-    int number = *((int *) ptr);
+    //get number of corresponding ball
+    int n = *((int *) ptr);
     free(ptr);
 
     while(!ifEnd())
     {
-        
+        //add ball to board
+        if(balls[n].position_X == -1)
+        {
+            //wait before adding
+            usleep(1000 * ((ADD_INTERVAL / 2) + (rand() % ADD_INTERVAL)));
+            balls[n].move_progress_Y=0;
+            balls[n].move_progress_X=0;
+            balls[n].direction_Y = -1;
+            balls[n].direction_X = ((rand() % 2) / 2) - 1;
+            balls[n].position_Y = SIZE_Y;
+            balls[n].position_X = rand() % SIZE_X;
+            balls[n].velocity_Y = 32 + (rand() % 77); //will get between 5 and 30
+            balls[n].velocity_X = 32 + (rand() % 77);
+        }
 
+        //remove ball from board if falling
+        if(balls[n].position_Y == SIZE_Y && balls[n].direction_Y == 1)
+        {
+            balls[n].position_X = -1;
+            continue;
+        }
+
+        //ping from walls
+        if(balls[n].position_X==0 && balls[n].direction_X ==-1)
+            balls[n].direction_X=1;
+        if(balls[n].position_X==SIZE_X-1 && balls[n].direction_X ==1)
+            balls[n].direction_X=-1;
+
+        //25 checks per second
+        usleep(1000*40); 
     }
 }
 
@@ -90,6 +122,7 @@ void *print_state(void* ptr)
     }
     refresh();
 
+    //refresh +- 40fps
     while(!ifEnd())
     {
         //clear board
@@ -107,7 +140,7 @@ void *print_state(void* ptr)
         }
 
         refresh();
-        usleep(1000*100);
+        usleep(1000*25);
     }
 
     //end ncurses
