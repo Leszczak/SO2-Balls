@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <pthread.h>
 #include <ncurses.h>
+#include <time.h>
 
 #define MAX_BALLS       1
 #define ADD_INTERVAL    3
@@ -22,7 +23,7 @@ struct Ball
     int move_progress_Y;
 };
 
-bool isEnd;
+volatile bool isEnd;
 char board[SIZE_Y][SIZE_X];
 struct Ball balls[MAX_BALLS];
 
@@ -35,8 +36,9 @@ pthread_t printThread;
 pthread_t ballThreads[MAX_BALLS];
 
 
-int main();
+int main(int argc, char *argv[]);
 void *do_stuff(void*);
 void *move_ball(void*);
 void *print_state(void*);
 void *watch_for_end(void*);
+bool ifEnd();

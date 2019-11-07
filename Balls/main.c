@@ -1,6 +1,6 @@
 #include "main.h"
 
-int main()
+int main(int argc, char *argv[])
 {
     //isEnd
     pthread_mutex_init( &isEndMutex, NULL);
@@ -11,7 +11,7 @@ int main()
         for(int j=0; j<SIZE_X; j++)
         {
             pthread_mutex_init(&boardMutexes[i][j], NULL);
-            board[i][j]=" ";
+            board[i][j] = ' ';
         }
     }
     //balls
@@ -26,6 +26,34 @@ int main()
         balls[i].velocity_Y = 0;
         balls[i].move_progress_X = 0;
         balls[i].move_progress_Y = 0;
+    }
+
+    //create threads
+    pthread_create(&printThread, NULL, print_state, NULL);
+    pthread_create(&isEndThread, NULL, watch_for_end, NULL);
+    for ( int i = 0; i < MAX_BALLS; i++) 
+    {
+        int *arg = malloc(sizeof(*arg));
+        *arg = i;
+        pthread_create(&ballThreads[i], NULL, move_ball, arg);
+    }
+
+    //join threads
+    pthread_join(isEndThread, NULL);
+    pthread_join(printThread, NULL);
+    for(int i=0; i<MAX_BALLS; i++)
+    {
+        pthread_join(ballThreads[i], NULL);
+    }
+
+    //destroy mutexes
+    pthread_mutex_destroy( &isEndMutex);
+    for(int i=0; i<SIZE_Y; i++)
+    {
+        for(int j=0; j<SIZE_X; j++)
+        {
+            pthread_mutex_destroy(&boardMutexes[i][j]);
+        }
     }
 
 
@@ -50,17 +78,43 @@ int main()
 
 void *move_ball(void* ptr)
 {
+    int number = *((int *) ptr);
+    free(ptr);
 
+    while(!ifEnd())
+    {
+
+    }
 }
 
 void *print_state(void* ptr)
 {
+    //start ncurses
 
+    while(!ifEnd())
+    {
+
+    }
+
+    //end ncurses
 }
 
 void *watch_for_end(void* ptr)
 {
+    //reason to stop
+    usleep(1000*1000);
+    pthread_mutex_lock( &isEndMutex);
+    isEnd = true;
+    pthread_mutex_unlock( &isEndMutex);
+}
 
+bool ifEnd()
+{
+    bool result;
+    pthread_mutex_lock( &isEndMutex);
+    result = isEnd;
+    pthread_mutex_unlock( &isEndMutex);
+    return result;
 }
 
 void *do_stuff (void *ptr)
