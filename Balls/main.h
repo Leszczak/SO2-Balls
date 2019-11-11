@@ -5,7 +5,7 @@
 #include <time.h>
 
 //max number of balls present at once
-#define MAX_BALLS       1
+#define MAX_BALLS       5
 //average time to spawn ball +-0.5
 #define ADD_INTERVAL    3000 //ms
 //horisontal size of playable board (+1 for each border, not counted in)
@@ -43,6 +43,7 @@ pthread_t printThread;
 pthread_t ballThreads[MAX_BALLS];
 
 int main(int argc, char *argv[]);
+void setup_and_start();
 void *move_ball(void*);
 void *print_state(void*);
 void *watch_for_end(void*);

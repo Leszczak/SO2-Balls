@@ -2,6 +2,11 @@
 
 int main(int argc, char *argv[])
 {
+    setup_and_start();
+}
+
+void setup_and_start()
+{
     //for randomness
     srand(time(NULL));
 
@@ -59,7 +64,6 @@ int main(int argc, char *argv[])
         }
     }
 }
-
 
 void *move_ball(void* ptr)
 {
