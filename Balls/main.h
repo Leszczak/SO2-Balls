@@ -3,20 +3,7 @@
 #include <pthread.h>
 #include <ncurses.h>
 #include <time.h>
-
-//max number of balls present at once
-#define MAX_BALLS       5
-//average time to spawn ball +-0.5
-#define ADD_INTERVAL    3000 //ms
-//horisontal size of playable board (+1 for each border, not counted in)
-#define SIZE_X          99
-//vartical size of playable board (+1 for each border, not counted in)
-#define SIZE_Y          30
-//how much slower/faster (going up/down) ball gets every 'tick' 
-#define GRAVITY         1
-//how much points must ball collect to move further
-//each 'tick' ball gets it's velocity
-#define SUM_TO_MOVE     100
+#include "defines.h"
 
 struct Ball
 {

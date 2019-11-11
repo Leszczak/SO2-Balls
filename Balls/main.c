@@ -84,20 +84,27 @@ void *move_ball(void* ptr)
         //add ball to board
         if(balls[n].position_X == -1)
         {
-            //wait before adding
             balls[n].move_progress_Y=0;
             balls[n].move_progress_X=0;
             balls[n].direction_Y = -1;
             balls[n].direction_X = ((rand() % 2) * 2) - 1;
             balls[n].position_Y = SIZE_Y;
             balls[n].position_X = rand() % SIZE_X;
-            balls[n].velocity_Y = 32 + (rand() % 30); //will get to good height
-            balls[n].velocity_X = 32 + (rand() % 30); //same speed as Y
-            usleep(1000 * ((ADD_INTERVAL / 2) + (rand() % ADD_INTERVAL)));
+            balls[n].velocity_Y = MAX_START_VELOCITY / 3 + rand() % MAX_START_VELOCITY *2 / 3;
+            balls[n].velocity_X = MAX_START_VELOCITY / 3 + rand() % MAX_START_VELOCITY *2 / 3;
+
+            //wait before adding
+            pthread_mutex_unlock(&ballMutexes[n]);
+            usleep(1000 * (rand() % ADD_INTERVAL));
+            pthread_mutex_lock(&ballMutexes[n]);
         }
 
         //start falling down
         if(balls[n].direction_Y == -1 && balls[n].velocity_Y == 0)
+            balls[n].direction_Y = 1;
+
+        //hit roof
+        if(balls[n].direction_Y == -1 && balls[n].position_Y == 0)
             balls[n].direction_Y = 1;
 
         //move up/down
