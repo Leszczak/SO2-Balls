@@ -1,5 +1,8 @@
 #include "main.h"
 
+//compile & start with:
+// gcc -o balls defines.h main.h main.c -lncurses -lpthread && ./balls
+
 int main(int argc, char *argv[])
 {
     setup_and_start();
