@@ -158,7 +158,8 @@ void *print_state(void* ptr)
         mvaddch(i, 0, '#');
         mvaddch(i, SIZE_X+1, '#');
     }
-    mvprintw(SIZE_Y+2, 0, "Thread no. / X_pos / X_dir / X_vel / Y_pos / Y_dir / Y_vel \n");
+    if(ifShowStats)
+        mvprintw(SIZE_Y+2, 0, "Thread no. / X_pos / X_dir / X_vel / Y_pos / Y_dir / Y_vel \n");
     
     refresh();
 
@@ -178,8 +179,8 @@ void *print_state(void* ptr)
             if(balls[i].position_X >= 0 && balls[i].position_Y >= 0)
                 mvaddch(balls[i].position_Y+1, balls[i].position_X+1, 'o');
 
-            //      Thread no.  / X_pos / X_dir / X_vel / Y_pos / Y_dir / Y_vel \n
-            mvprintw(SIZE_Y+3+i,
+            if(ifShowStats)
+                mvprintw(SIZE_Y+3+i,
                     0,
                     "         %d /    %d /    %d /    %d /    %d /    %d /    %d \n",
                     i, 

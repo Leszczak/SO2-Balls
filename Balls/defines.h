@@ -13,3 +13,5 @@
 #define SUM_TO_MOVE     100
 //max starting velocity of balls
 #define MAX_START_VELOCITY  100
+//should program show ball stats? (true/false)
+#define ifShowStats     false
