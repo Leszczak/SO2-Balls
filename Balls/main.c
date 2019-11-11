@@ -6,8 +6,8 @@ int main(int argc, char *argv[])
     srand(time(NULL));
 
     //isEnd
-    pthread_mutex_init( &isEndMutex, NULL);
     isEnd = false;
+    pthread_mutex_init( &isEndMutex, NULL);
     //board
     for(int i=0; i<SIZE_Y; i++)
     {
@@ -69,33 +69,57 @@ void *move_ball(void* ptr)
 
     while(!ifEnd())
     {
+        pthread_mutex_lock(&ballMutexes[n]);
+        
+        //remove ball from board if falling
+        if(balls[n].position_Y >= SIZE_Y && balls[n].direction_Y == 1)
+        {
+            balls[n].position_X = -1;
+        }
+
         //add ball to board
         if(balls[n].position_X == -1)
         {
             //wait before adding
-            usleep(1000 * ((ADD_INTERVAL / 2) + (rand() % ADD_INTERVAL)));
             balls[n].move_progress_Y=0;
             balls[n].move_progress_X=0;
             balls[n].direction_Y = -1;
-            balls[n].direction_X = ((rand() % 2) / 2) - 1;
+            balls[n].direction_X = ((rand() % 2) * 2) - 1;
             balls[n].position_Y = SIZE_Y;
             balls[n].position_X = rand() % SIZE_X;
-            balls[n].velocity_Y = 32 + (rand() % 77); //will get between 5 and 30
-            balls[n].velocity_X = 32 + (rand() % 77);
+            balls[n].velocity_Y = 32 + (rand() % 30); //will get to good height
+            balls[n].velocity_X = 32 + (rand() % 30); //same speed as Y
+            usleep(1000 * ((ADD_INTERVAL / 2) + (rand() % ADD_INTERVAL)));
         }
 
-        //remove ball from board if falling
-        if(balls[n].position_Y == SIZE_Y && balls[n].direction_Y == 1)
+        //start falling down
+        if(balls[n].direction_Y == -1 && balls[n].velocity_Y == 0)
+            balls[n].direction_Y = 1;
+
+        //move up/down
+        balls[n].move_progress_Y += abs(balls[n].velocity_Y);
+        if(balls[n].move_progress_Y - SUM_TO_MOVE >= 0)
         {
-            balls[n].position_X = -1;
-            continue;
+            balls[n].position_Y += balls[n].direction_Y;
+            balls[n].move_progress_Y -= SUM_TO_MOVE;
         }
+        balls[n].velocity_Y -= GRAVITY;
 
-        //ping from walls
+        //bounce from walls
         if(balls[n].position_X==0 && balls[n].direction_X ==-1)
             balls[n].direction_X=1;
         if(balls[n].position_X==SIZE_X-1 && balls[n].direction_X ==1)
             balls[n].direction_X=-1;
+
+        //move left/right
+        balls[n].move_progress_X += abs(balls[n].velocity_X);
+        if(balls[n].move_progress_X - SUM_TO_MOVE >= 0)
+        {
+            balls[n].position_X += balls[n].direction_X;
+            balls[n].move_progress_X -= SUM_TO_MOVE;
+        }
+
+        pthread_mutex_unlock(&ballMutexes[n]);
 
         //25 checks per second
         usleep(1000*40); 
@@ -120,6 +144,8 @@ void *print_state(void* ptr)
         mvaddch(i, 0, '#');
         mvaddch(i, SIZE_X+1, '#');
     }
+    mvprintw(SIZE_Y+2, 0, "Thread no. / X_pos / X_dir / X_vel / Y_pos / Y_dir / Y_vel \n");
+    
     refresh();
 
     //refresh +- 40fps
@@ -130,12 +156,26 @@ void *print_state(void* ptr)
             for(int j=0; j<SIZE_X; j++)
                 mvaddch(i+1, j+1, ' ');
 
-        //place balls on new positions
+        //place balls on new positions and print coordinates
         for(int i=0; i<MAX_BALLS; i++)
         {
             pthread_mutex_lock(&ballMutexes[i]);
+
             if(balls[i].position_X >= 0 && balls[i].position_Y >= 0)
                 mvaddch(balls[i].position_Y+1, balls[i].position_X+1, 'o');
+
+            //      Thread no.  / X_pos / X_dir / X_vel / Y_pos / Y_dir / Y_vel \n
+            mvprintw(SIZE_Y+3+i,
+                    0,
+                    "         %d /    %d /    %d /    %d /    %d /    %d /    %d \n",
+                    i, 
+                    balls[i].position_X, 
+                    balls[i].direction_X, 
+                    balls[i].velocity_X, 
+                    balls[i].position_Y, 
+                    balls[i].direction_Y, 
+                    balls[i].velocity_Y);
+
             pthread_mutex_unlock(&ballMutexes[i]);
         }
 
@@ -150,10 +190,10 @@ void *print_state(void* ptr)
 void *watch_for_end(void* ptr)
 {
     //reason to stop
-    usleep(1000*1000*5);
+    /*usleep(1000*1000*5);
     pthread_mutex_lock( &isEndMutex);
     isEnd = true;
-    pthread_mutex_unlock( &isEndMutex);
+    pthread_mutex_unlock( &isEndMutex);*/
 }
 
 bool ifEnd()
