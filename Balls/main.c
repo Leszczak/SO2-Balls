@@ -13,9 +13,12 @@ void setup_and_start()
     //for randomness
     srand(time(NULL));
 
-    //isEnd
+    //isEnd & frame
     isEnd = false;
     pthread_mutex_init( &isEndMutex, NULL);
+    frame_X = 10;
+    trappedBallsNum = 0;
+    pthread_mutex_init( &frameMutex, NULL);
     //board
     for(int i=0; i<SIZE_Y; i++)
     {
@@ -37,17 +40,22 @@ void setup_and_start()
         balls[i].velocity_Y = 0;
         balls[i].move_progress_X = 0;
         balls[i].move_progress_Y = 0;
+        balls[i].canStart = false;
+        balls[i].isTrapped = false;
+        balls[i].wasTrapped = false;
     }
 
     //create threads
     pthread_create(&printThread, NULL, print_state, NULL);
-    pthread_create(&isEndThread, NULL, watch_for_end, NULL);
     for ( int i = 0; i < MAX_BALLS; i++) 
     {
         int *arg = malloc(sizeof(*arg));
         *arg = i;
         pthread_create(&ballThreads[i], NULL, move_ball, arg);
     }
+    pthread_create(&isEndThread, NULL, watch_for_end, NULL);
+    pthread_create(&ballStarterThread, NULL, balls_starter, NULL);
+    pthread_create(&frameThread, NULL, frame_mover, NULL);
 
     //join threads
     pthread_join(isEndThread, NULL);
@@ -56,6 +64,8 @@ void setup_and_start()
     {
         pthread_join(ballThreads[i], NULL);
     }
+    pthread_join(ballStarterThread, NULL);
+    pthread_join(frameThread, NULL);
 
     //destroy mutexes
     pthread_mutex_destroy( &isEndMutex);
@@ -76,17 +86,57 @@ void *move_ball(void* ptr)
 
     while(!ifEnd())
     {
+        //don't move if is trapped
+        if(balls[n].isTrapped)
+        {
+            //for checks/s if free
+            //or frees itself after MAX_TRAP_TIME s
+            for(int i=0; i<MAX_TRAP_TIME*4; i++)
+            {
+                usleep(1000*250);
+                //if locked sleep, else wake up
+                pthread_mutex_lock(&ballMutexes[n]);
+                if(!balls[n].isTrapped)
+                {
+                    break;
+                }
+                pthread_mutex_unlock(&ballMutexes[n]);
+            }
+            balls[n].isTrapped = false;
+            balls[n].wasTrapped = true; 
+            pthread_mutex_lock(&frameMutex);
+            trappedBallsNum--;
+            pthread_mutex_unlock(&frameMutex);   
+            pthread_mutex_unlock(&ballMutexes[n]);        
+        }
+        else
+            //25 checks per second
+            usleep(1000*40); 
+        
         pthread_mutex_lock(&ballMutexes[n]);
         
         //remove ball from board if falling
         if(balls[n].position_Y >= SIZE_Y && balls[n].direction_Y == 1)
         {
             balls[n].position_X = -1;
+            balls[n].position_X = -1;
+            balls[n].move_progress_Y = 0;
+            balls[n].move_progress_X = 0;
+            balls[n].direction_Y = 0;
+            balls[n].direction_X = 0;
+            balls[n].velocity_Y = 0;
+            balls[n].velocity_X = 0;
+            balls[n].canStart = false;
+            balls[n].wasTrapped = false;
+            balls[n].isTrapped = false;
         }
 
-        //add ball to board
-        if(balls[n].position_X == -1)
+        //reset ball
+        if(balls[n].position_X == -1 && balls[n].canStart)
         {
+            balls[n].wasTrapped = false;
+            balls[n].isTrapped = false;
+            balls[n].canStart = false;
             balls[n].move_progress_Y=0;
             balls[n].move_progress_X=0;
             balls[n].direction_Y = -1;
@@ -95,20 +145,20 @@ void *move_ball(void* ptr)
             balls[n].position_X = rand() % SIZE_X;
             balls[n].velocity_Y = MAX_START_VELOCITY / 3 + rand() % MAX_START_VELOCITY *2 / 3;
             balls[n].velocity_X = MAX_START_VELOCITY / 3 + rand() % MAX_START_VELOCITY *2 / 3;
-
-            //wait before adding
-            pthread_mutex_unlock(&ballMutexes[n]);
-            usleep(1000 * (rand() % ADD_INTERVAL));
-            pthread_mutex_lock(&ballMutexes[n]);
         }
 
         //start falling down
         if(balls[n].direction_Y == -1 && balls[n].velocity_Y == 0)
+        {
             balls[n].direction_Y = 1;
+        }
 
         //hit roof
         if(balls[n].direction_Y == -1 && balls[n].position_Y == 0)
+        {
             balls[n].direction_Y = 1;
+            balls[n].wasTrapped = false;
+        }
 
         //move up/down
         balls[n].move_progress_Y += abs(balls[n].velocity_Y);
@@ -121,9 +171,15 @@ void *move_ball(void* ptr)
 
         //bounce from walls
         if(balls[n].position_X==0 && balls[n].direction_X ==-1)
+        {
             balls[n].direction_X=1;
+            balls[n].wasTrapped = false;
+        }
         if(balls[n].position_X==SIZE_X-1 && balls[n].direction_X ==1)
+        {
             balls[n].direction_X=-1;
+            balls[n].wasTrapped = false;
+        }
 
         //move left/right
         balls[n].move_progress_X += abs(balls[n].velocity_X);
@@ -133,10 +189,16 @@ void *move_ball(void* ptr)
             balls[n].move_progress_X -= SUM_TO_MOVE;
         }
 
-        pthread_mutex_unlock(&ballMutexes[n]);
+        //if got trapped
+        if(ifCought(n))
+        {
+            balls[n].isTrapped = true;
+            pthread_mutex_lock(&frameMutex);
+            trappedBallsNum++;
+            pthread_mutex_unlock(&frameMutex);
+        }
 
-        //25 checks per second
-        usleep(1000*40); 
+        pthread_mutex_unlock(&ballMutexes[n]);
     }
 }
 
@@ -160,7 +222,8 @@ void *print_state(void* ptr)
     }
     if(ifShowStats)
         mvprintw(SIZE_Y+2, 0, "Thread no. / X_pos / X_dir / X_vel / Y_pos / Y_dir / Y_vel \n");
-    
+    else if (ifShowFrameStats)
+        mvprintw(SIZE_Y+2, 0, "Balls inside: ");
     refresh();
 
     //refresh +- 40fps
@@ -170,6 +233,24 @@ void *print_state(void* ptr)
         for(int i=0; i<SIZE_Y; i++)
             for(int j=0; j<SIZE_X; j++)
                 mvaddch(i+1, j+1, ' ');
+
+        //draw frame
+        pthread_mutex_lock(&frameMutex);
+        //upper horisontal
+        for(int i=0; i<=FRAME_WIDTH; i++)
+            mvaddch(FRAME_Y, i+frame_X, '@');
+        //lower horisontal
+        for(int i=0; i<=FRAME_WIDTH; i++)
+            mvaddch(FRAME_Y+FRAME_HEIGHT+1, i+frame_X, '@');
+        //left vertical
+        for(int i=0; i<=FRAME_HEIGHT; i++)
+            mvaddch(i+FRAME_Y, frame_X, '@');
+        //right vertical
+        for(int i=0; i<=FRAME_HEIGHT+1; i++)
+            mvaddch(i+FRAME_Y, frame_X+FRAME_WIDTH+1, '@');
+        if(ifShowFrameStats && !ifShowStats)
+            mvprintw(SIZE_Y+2, 14, "%d\n", trappedBallsNum);
+        pthread_mutex_unlock(&frameMutex);
 
         //place balls on new positions and print coordinates
         for(int i=0; i<MAX_BALLS; i++)
@@ -205,10 +286,63 @@ void *print_state(void* ptr)
 void *watch_for_end(void* ptr)
 {
     //reason to stop
-    /*usleep(1000*1000*5);
+    usleep(1000*1000);
+    getch();
     pthread_mutex_lock( &isEndMutex);
     isEnd = true;
-    pthread_mutex_unlock( &isEndMutex);*/
+    pthread_mutex_unlock( &isEndMutex);
+}
+
+void *balls_starter()
+{
+    while(!ifEnd())
+    {
+        usleep(1000*ADD_INTERVAL);
+        for ( int i = 0; i < MAX_BALLS; i++) 
+        {
+            pthread_mutex_lock( &ballMutexes[i]);
+            if(balls[i].position_X == -1 && !balls[i].canStart)
+            {
+                balls[i].canStart = true;
+                pthread_mutex_unlock( &ballMutexes[i]);
+                break;
+            }
+            pthread_mutex_unlock( &ballMutexes[i]);
+        }
+    }
+}
+
+void *frame_mover()
+{
+    int move = -1;    
+    while(!ifEnd())
+    {
+        usleep(FRAME_SPEED);
+
+        bool shouldFree = false;
+        pthread_mutex_lock(&frameMutex);
+        if(move == -1 && frame_X == 1)
+            move = 1;
+        else if (move == 1 && frame_X+FRAME_WIDTH+1>=SIZE_X)
+            move = -1;
+        frame_X+=move;
+
+        if(trappedBallsNum>=3)
+        {
+            shouldFree=true;
+        }
+        pthread_mutex_unlock(&frameMutex);
+
+        for(int i=0; i<MAX_BALLS; i++)
+        {
+            pthread_mutex_lock(&ballMutexes[i]);
+            if(shouldFree)
+                balls[i].isTrapped=false;
+            else if(balls[i].isTrapped)
+                balls[i].position_X+=move;
+            pthread_mutex_unlock(&ballMutexes[i]);
+        }
+    }
 }
 
 bool ifEnd()
@@ -218,4 +352,39 @@ bool ifEnd()
     result = isEnd;
     pthread_mutex_unlock( &isEndMutex);
     return result;
+}
+
+//assumes locks of ball
+//uses locks on frame
+bool ifCought(int ballNum)
+{
+    //is ball safe?
+    if(balls[ballNum].wasTrapped)
+        return false;
+
+    pthread_mutex_lock( &frameMutex);
+    //is trap full?
+    if(trappedBallsNum >= MAX_TRAPPED_BALLS)
+    {
+        pthread_mutex_unlock( &frameMutex);
+        return false;
+    }
+    //is ball inside trap?
+    if(ifInside(balls[ballNum].position_X, balls[ballNum].position_Y))
+    {
+        pthread_mutex_unlock( &frameMutex);
+        return true;
+    }
+    pthread_mutex_unlock( &frameMutex);
+    //if none from above - default false
+    return false;
+}
+
+//assumes locks of ball and frame
+bool ifInside(int X, int Y)
+{
+    if(Y >= FRAME_Y && Y < FRAME_Y + FRAME_HEIGHT    //Y
+        && X >= frame_X && X < frame_X + FRAME_WIDTH)//X
+        return true;
+    return false;
 }
