@@ -44,6 +44,13 @@ void setup_and_start()
         balls[i].isTrapped = false;
         balls[i].wasTrapped = false;
     }
+    //destructables
+    for(int i=0; i<SIZE_X; i++)
+        for(int j=0; j<DESTRUCTABLE_Y; j++)
+        {
+            destructable[i][j] = MAX_DESTRUCTABLE_VALUE;
+            pthread_mutex_init(&destructableMutexes[i][j], NULL);
+        }
 
     //create threads
     pthread_create(&printThread, NULL, print_state, NULL);
@@ -76,6 +83,9 @@ void setup_and_start()
             pthread_mutex_destroy(&boardMutexes[i][j]);
         }
     }
+    for(int i=0; i<SIZE_X; i++)
+        for(int j=0; j<DESTRUCTABLE_Y; j++)
+            pthread_mutex_init(&destructableMutexes[i][j], NULL);
 }
 
 void *move_ball(void* ptr)
@@ -115,6 +125,41 @@ void *move_ball(void* ptr)
         
         pthread_mutex_lock(&ballMutexes[n]);
         
+        int x = balls[n].position_X;
+        int dir_x = balls[n].direction_X; 
+        int y = balls[n].position_Y;
+        int dir_y = balls[n].direction_Y;
+        int next_x = balls[n].position_X + balls[n].direction_X;
+        int next_y = balls[n].position_Y + balls[n].direction_Y;
+        //hit vertical
+        if( x >= 0
+            && x < SIZE_X
+            && next_y >= 0
+            && next_y < DESTRUCTABLE_Y)
+        {
+            pthread_mutex_lock(&destructableMutexes[x][next_y]);
+            if(destructable[x][next_y] > 0)
+            {
+                destructable[x][next_y]--;
+                balls[n].direction_Y *= -1;
+            }
+            pthread_mutex_unlock(&destructableMutexes[x][next_y]);
+        }
+        //hit horizontal
+        if( y >= 0
+            && y < DESTRUCTABLE_Y
+            && next_x >= 0
+            && next_x < SIZE_X)
+        {
+            pthread_mutex_lock(&destructableMutexes[next_x][y]);
+            if(destructable[next_x][y] > 0)
+            {
+                destructable[next_x][y]--;
+                balls[n].direction_X *= -1;
+            }
+            pthread_mutex_unlock(&destructableMutexes[next_x][y]);        
+        }
+
         //remove ball from board if falling
         if(balls[n].position_Y >= SIZE_Y && balls[n].direction_Y == 1)
         {
@@ -275,6 +320,16 @@ void *print_state(void* ptr)
             pthread_mutex_unlock(&ballMutexes[i]);
         }
 
+        //show destructables
+        for(int i=0; i<SIZE_X; i++)
+            for(int j=0; j<DESTRUCTABLE_Y; j++)
+            {
+                pthread_mutex_lock(&destructableMutexes[i][j]);
+                if(destructable[i][j] != 0)
+                    mvaddch(j+1, i+1, (char) destructable[i][j] +'0');
+                pthread_mutex_unlock(&destructableMutexes[i][j]);
+            }
+        
         refresh();
         usleep(1000*25);
     }

@@ -1,7 +1,7 @@
 //max number of balls present at once
-#define MAX_BALLS       10
+#define MAX_BALLS       100
 //time to spawn next ball [ms]
-#define ADD_INTERVAL    1000 //ms
+#define ADD_INTERVAL    10 //ms
 //horisontal size of playable board (+1 for each border, not counted in)
 #define SIZE_X          99
 //vartical size of playable board (+1 for each border, not counted in)
@@ -16,12 +16,12 @@
 //should program show ball stats? (true/false)
 #define ifShowStats     false
 //should program show frame stats? (true/false)
-#define ifShowFrameStats     true
+#define ifShowFrameStats     false
 
 //max number of trapped balls
 #define MAX_TRAPPED_BALLS   3
 //frame top Y possition
-#define FRAME_Y             10
+#define FRAME_Y             20
 //frame height
 #define FRAME_HEIGHT        10
 //frame width
@@ -30,3 +30,8 @@
 #define FRAME_SPEED         1000*250 //4 pixels/s
 //trap time for ball [s]
 #define MAX_TRAP_TIME       3 //s
+
+//max value of destuctable field
+#define MAX_DESTRUCTABLE_VALUE 3
+//destructables initial height
+#define DESTRUCTABLE_Y      15

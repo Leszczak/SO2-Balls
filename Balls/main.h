@@ -25,11 +25,13 @@ char board[SIZE_Y][SIZE_X];
 struct Ball balls[MAX_BALLS];
 int frame_X;
 int trappedBallsNum;
+int destructable[SIZE_X][DESTRUCTABLE_Y];
 
 pthread_mutex_t isEndMutex;
 pthread_mutex_t boardMutexes[SIZE_Y][SIZE_X];
 pthread_mutex_t ballMutexes[MAX_BALLS];
 pthread_mutex_t frameMutex;
+pthread_mutex_t destructableMutexes[SIZE_X][DESTRUCTABLE_Y];
 
 pthread_t isEndThread;
 pthread_t printThread;
